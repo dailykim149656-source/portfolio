@@ -45,6 +45,81 @@
             padding: 20px;
             background: #f8f9fa;
             aspect-ratio: 1;
+            position: relative;
+        }
+
+        .center-control-panel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+            backdrop-filter: blur(10px);
+            border: 2px solid #ddd;
+            text-align: center;
+            z-index: 100;
+            min-width: 180px;
+            max-width: 250px;
+        }
+
+        .center-dice {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            background: white;
+            border: 2px solid #333;
+            border-radius: 6px;
+            line-height: 26px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: bold;
+            margin: 0 3px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .center-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 12px;
+            margin: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .center-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+        }
+
+        .center-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .center-btn-buy {
+            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+            font-size: 10px;
+            padding: 6px 12px;
+        }
+
+        .center-turn {
+            font-size: 11px;
+            font-weight: bold;
+            margin: 8px 0 5px 0;
+            color: #333;
+        }
+
+        .center-money {
+            font-size: 10px;
+            color: #666;
+            margin: 5px 0;
         }
 
         .cell {
@@ -137,40 +212,6 @@
         .player-info h3 {
             margin-bottom: 10px;
             color: #333;
-        }
-
-        .properties-panel {
-            background: white;
-            margin: 20px;
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-
-        .properties-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-top: 10px;
-        }
-
-        .property-item {
-            background: #f8f9fa;
-            padding: 10px;
-            border-radius: 8px;
-            border: 2px solid #ddd;
-        }
-
-        .property-item.player-owned {
-            border-color: #4ecdc4;
-            background: linear-gradient(135deg, #4ecdc4, #44a08d);
-            color: white;
-        }
-
-        .property-item.computer-owned {
-            border-color: #ff6b6b;
-            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
-            color: white;
         }
 
         .controls {
@@ -277,6 +318,40 @@
             color: #2d3436;
         }
 
+        .properties-panel {
+            background: white;
+            margin: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .properties-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .property-item {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 8px;
+            border: 2px solid #ddd;
+        }
+
+        .property-item.player-owned {
+            border-color: #4ecdc4;
+            background: linear-gradient(135deg, #4ecdc4, #44a08d);
+            color: white;
+        }
+
+        .property-item.computer-owned {
+            border-color: #ff6b6b;
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+        }
+
         @media (max-width: 768px) {
             .cell {
                 font-size: 9px;
@@ -304,7 +379,22 @@
             <p>컴퓨터와 부동산 전쟁을 벌여보세요!</p>
         </div>
 
-        <div class="game-board" id="gameBoard"></div>
+        <div class="game-board" id="gameBoard">
+            <!-- 중앙 컨트롤 패널 -->
+            <div class="center-control-panel">
+                <div class="center-turn" id="centerTurn">당신의 차례!</div>
+                <div class="center-money">
+                    <div>🧑 $<span id="centerPlayerMoney">1000</span></div>
+                    <div>🤖 $<span id="centerComputerMoney">1000</span></div>
+                </div>
+                <button class="center-btn" onclick="rollDice()">🎲 주사위</button>
+                <button class="center-btn center-btn-buy" id="centerBuyButton" onclick="buyCurrentProperty()" style="display: none;">구매</button>
+                <div style="margin: 8px 0;">
+                    <span class="center-dice" id="centerDice1">1</span>
+                    <span class="center-dice" id="centerDice2">1</span>
+                </div>
+            </div>
+        </div>
 
         <div class="info-panel">
             <div class="player-info">
@@ -393,7 +483,10 @@
         // 보드 초기화
         function initBoard() {
             const board = document.getElementById('gameBoard');
-            board.innerHTML = '';
+            
+            // 기존 게임 셀들만 제거 (중앙 패널 제외)
+            const existingCells = board.querySelectorAll('.cell');
+            existingCells.forEach(cell => cell.remove());
             
             for (let i = 0; i < 25; i++) {
                 const cell = document.createElement('div');
@@ -414,7 +507,7 @@
                         cell.classList.add('property');
                         cell.innerHTML = `
                             <div class="property-name">${cellData.name}</div>
-                            <div class="property-price">$${cellData.price}</div>
+                            <div class="property-price">${cellData.price}</div>
                         `;
                     } else if (cellData.type === 'tax') {
                         cell.innerHTML = `<div style="font-size: 9px;">💸${cellData.name}<br>$50</div>`;
@@ -426,7 +519,8 @@
                     cell.style.border = 'none';
                 }
                 
-                board.appendChild(cell);
+                // 중앙 패널 앞에 셀 추가
+                board.insertBefore(cell, board.querySelector('.center-control-panel'));
             }
             
             updateBoard();
@@ -540,21 +634,34 @@
         // 구매 버튼 업데이트
         function updateBuyButton() {
             const buyButton = document.getElementById('buyButton');
-            if (!buyButton) return;
+            const centerBuyButton = document.getElementById('centerBuyButton');
             
             const currentCell = boardLayout[gameState.playerPosition];
             if (!currentCell) return;
             
-            if (gameState.currentPlayer === 'player' && 
+            const canBuy = gameState.currentPlayer === 'player' && 
                 currentCell.type === 'property' && 
                 !gameState.playerProperties.includes(gameState.playerPosition) && 
                 !gameState.computerProperties.includes(gameState.playerPosition) &&
                 gameState.playerMoney >= currentCell.price &&
-                !gameState.playerInJail) {
-                buyButton.style.display = 'inline-block';
-                buyButton.textContent = `🏠 ${currentCell.name} 구매 ($${currentCell.price})`;
-            } else {
-                buyButton.style.display = 'none';
+                !gameState.playerInJail;
+            
+            if (buyButton) {
+                if (canBuy) {
+                    buyButton.style.display = 'inline-block';
+                    buyButton.textContent = `🏠 ${currentCell.name} 구매 (${currentCell.price})`;
+                } else {
+                    buyButton.style.display = 'none';
+                }
+            }
+            
+            if (centerBuyButton) {
+                if (canBuy) {
+                    centerBuyButton.style.display = 'inline-block';
+                    centerBuyButton.textContent = `구매 ${currentCell.price}`;
+                } else {
+                    centerBuyButton.style.display = 'none';
+                }
             }
         }
 
@@ -569,7 +676,10 @@
                 computerPosition: document.getElementById('computerPosition'),
                 playerStatus: document.getElementById('playerStatus'),
                 computerStatus: document.getElementById('computerStatus'),
-                currentTurn: document.getElementById('currentTurn')
+                currentTurn: document.getElementById('currentTurn'),
+                centerTurn: document.getElementById('centerTurn'),
+                centerPlayerMoney: document.getElementById('centerPlayerMoney'),
+                centerComputerMoney: document.getElementById('centerComputerMoney')
             };
             
             if (elements.playerMoney) elements.playerMoney.textContent = gameState.playerMoney;
@@ -578,6 +688,14 @@
             if (elements.computerProperties) elements.computerProperties.textContent = gameState.computerProperties.length;
             if (elements.playerPosition) elements.playerPosition.textContent = boardLayout[gameState.playerPosition]?.name || '알 수 없음';
             if (elements.computerPosition) elements.computerPosition.textContent = boardLayout[gameState.computerPosition]?.name || '알 수 없음';
+            
+            // 중앙 패널 업데이트
+            if (elements.centerPlayerMoney) elements.centerPlayerMoney.textContent = gameState.playerMoney;
+            if (elements.centerComputerMoney) elements.centerComputerMoney.textContent = gameState.computerMoney;
+            
+            const turnText = gameState.currentPlayer === 'player' ? '당신의 차례!' : '컴퓨터 차례';
+            if (elements.currentTurn) elements.currentTurn.textContent = gameState.currentPlayer === 'player' ? '당신의 차례입니다!' : '컴퓨터의 차례입니다...';
+            if (elements.centerTurn) elements.centerTurn.textContent = turnText;
             
             let playerStatusText = '';
             if (gameState.playerInJail) playerStatusText += '<div class="status-indicator">🔒 감옥에 있음</div>';
@@ -588,11 +706,6 @@
             if (gameState.computerInJail) computerStatusText += '<div class="status-indicator">🔒 감옥에 있음</div>';
             if (gameState.computerJailFree) computerStatusText += '<div class="status-indicator">🗝️ 감옥 면제권 보유</div>';
             if (elements.computerStatus) elements.computerStatus.innerHTML = computerStatusText;
-            
-            if (elements.currentTurn) {
-                elements.currentTurn.textContent = 
-                    gameState.currentPlayer === 'player' ? '당신의 차례입니다!' : '컴퓨터의 차례입니다...';
-            }
         }
 
         // 게임 로그 추가
@@ -630,6 +743,10 @@
             
             document.getElementById('dice1').textContent = dice1;
             document.getElementById('dice2').textContent = dice2;
+            document.getElementById('centerDice1').textContent = dice1;
+            document.getElementById('centerDice2').textContent = dice2;
+            document.getElementById('centerDice1').textContent = dice1;
+            document.getElementById('centerDice2').textContent = dice2;
             
             if (gameState.currentPlayer === 'player') {
                 if (isDouble) {
