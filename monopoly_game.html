@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>1인용 모노폴리 게임</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .game-container {
+            max-width: 600px;
+            width: 100%;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            grid-template-rows: repeat(5, 1fr);
+            gap: 3px;
+            padding: 20px;
+            background: #f8f9fa;
+            aspect-ratio: 1;
+        }
+
+        .cell {
+            background: white;
+            border: 2px solid #ddd;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-size: 11px;
+            text-align: center;
+            padding: 5px;
+            position: relative;
+            min-height: 80px;
+            border-radius: 8px;
+        }
+
+        .corner {
+            background: linear-gradient(45deg, #ffd700, #ffed4a);
+            font-weight: bold;
+            font-size: 10px;
+        }
+
+        .property {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .property:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .owned-player {
+            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+            color: white;
+        }
+
+        .owned-computer {
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+        }
+
+        .player {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            border: 2px solid white;
+            z-index: 10;
+            font-size: 12px;
+            line-height: 16px;
+            text-align: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .player-human {
+            background: #4ecdc4;
+            top: 5px;
+            left: 5px;
+        }
+
+        .player-computer {
+            background: #ff6b6b;
+            bottom: 5px;
+            right: 5px;
+        }
+
+        .info-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .player-info {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .player-info h3 {
+            margin-bottom: 10px;
+            color: #333;
+        }
+
+        .controls {
+            text-align: center;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-buy {
+            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+            font-size: 14px;
+            padding: 8px 16px;
+        }
+
+        .dice {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            background: white;
+            border: 2px solid #333;
+            border-radius: 8px;
+            line-height: 36px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            margin: 0 5px;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+        }
+
+        .game-log {
+            max-height: 150px;
+            overflow-y: auto;
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px;
+            font-size: 14px;
+            line-height: 1.5;
+            border: 1px solid #ddd;
+        }
+
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 5px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .log-player {
+            color: #4ecdc4;
+            font-weight: bold;
+        }
+
+        .log-computer {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+
+        .property-name {
+            font-size: 10px;
+            margin-bottom: 2px;
+        }
+
+        .property-price {
+            font-size: 8px;
+            color: #666;
+        }
+
+        @media (max-width: 768px) {
+            .cell {
+                font-size: 9px;
+                min-height: 60px;
+                padding: 3px;
+            }
+            
+            .player {
+                width: 15px;
+                height: 15px;
+                font-size: 10px;
+                line-height: 11px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <h1>🎯 1인용 모노폴리 게임</h1>
+            <p>컴퓨터와 부동산 전쟁을 벌여보세요!</p>
+        </div>
+
+        <div class="game-board" id="gameBoard"></div>
+
+        <div class="info-panel">
+            <div class="player-info">
+                <h3>🧑 플레이어</h3>
+                <p>💰 돈: $<span id="playerMoney">1000</span></p>
+                <p>🏠 소유 부동산: <span id="playerProperties">0</span></p>
+                <p>📍 위치: <span id="playerPosition">시작</span></p>
+            </div>
+            <div class="player-info">
+                <h3>🤖 컴퓨터</h3>
+                <p>💰 돈: $<span id="computerMoney">1000</span></p>
+                <p>🏠 소유 부동산: <span id="computerProperties">0</span></p>
+                <p>📍 위치: <span id="computerPosition">시작</span></p>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn" id="rollDice" onclick="rollDice()">🎲 주사위 굴리기</button>
+            <button class="btn btn-buy" id="buyButton" onclick="buyCurrentProperty()" style="display: none;">🏠 부동산 구매</button>
+            <div style="margin: 15px 0;">
+                <span class="dice" id="dice1">1</span>
+                <span class="dice" id="dice2">1</span>
+            </div>
+            <p id="currentTurn">당신의 차례입니다!</p>
+        </div>
+
+        <div class="game-log" id="gameLog">
+            <div class="log-entry">게임이 시작되었습니다! 플레이어와 컴퓨터 모두 $1000으로 시작합니다.</div>
+        </div>
+    </div>
+
+    <script>
+        // 게임 상태
+        let gameState = {
+            currentPlayer: 'player',
+            playerMoney: 1000,
+            computerMoney: 1000,
+            playerPosition: 0,
+            computerPosition: 0,
+            playerProperties: [],
+            computerProperties: [],
+            gameEnded: false
+        };
+
+        // 5x5 보드 레이아웃 (16칸, 테두리만 사용)
+        const boardLayout = [
+            // 위쪽 줄 (0-4)
+            { name: '시작', type: 'corner', price: 0 },
+            { name: '강남', type: 'property', price: 100 },
+            { name: '행운카드', type: 'special', price: 0 },
+            { name: '홍대', type: 'property', price: 120 },
+            { name: '감옥', type: 'corner', price: 0 },
+            
+            // 오른쪽 줄 (5-7)
+            { name: '명동', type: 'property', price: 150 },
+            { name: '동대문', type: 'property', price: 100 },
+            { name: '이태원', type: 'property', price: 130 },
+            
+            // 아래쪽 줄 (8-11)
+            { name: '무료주차', type: 'corner', price: 0 },
+            { name: '여의도', type: 'property', price: 110 },
+            { name: '기회카드', type: 'special', price: 0 },
+            { name: '건대', type: 'property', price: 90 },
+            
+            // 왼쪽 줄 (12-15)
+            { name: '세금', type: 'special', price: 0 },
+            { name: '신촌', type: 'property', price: 80 },
+            { name: '잠실', type: 'property', price: 140 },
+            { name: '압구정', type: 'property', price: 160 }
+        ];
+
+        // 5x5 그리드에서 보드 위치 매핑
+        const positionToGrid = [
+            0, 1, 2, 3, 4,      // 위쪽 (0-4)
+            9, 14, 19,          // 오른쪽 (5-7)
+            24, 23, 22, 21, 20, // 아래쪽 (8-12)
+            15, 10, 5           // 왼쪽 (13-15)
+        ];
+
+        // 보드 초기화
+        function initBoard() {
+            const board = document.getElementById('gameBoard');
+            board.innerHTML = '';
+            
+            for (let i = 0; i < 25; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.id = `cell-${i}`;
+                
+                // 테두리 셀만 활성화
+                const boardIndex = positionToGrid.indexOf(i);
+                if (boardIndex !== -1) {
+                    const cellData = boardLayout[boardIndex];
+                    
+                    if (cellData.type === 'corner') {
+                        cell.classList.add('corner');
+                        cell.innerHTML = `<div>${cellData.name}</div>`;
+                    } else if (cellData.type === 'property') {
+                        cell.classList.add('property');
+                        cell.innerHTML = `
+                            <div class="property-name">${cellData.name}</div>
+                            <div class="property-price">$${cellData.price}</div>
+                        `;
+                    } else {
+                        cell.innerHTML = `<div style="font-size: 9px;">${cellData.name}</div>`;
+                    }
+                } else {
+                    // 중앙 빈 공간
+                    cell.style.background = '#f8f9fa';
+                    cell.style.border = 'none';
+                }
+                
+                board.appendChild(cell);
+            }
+            
+            updateBoard();
+        }
+
+        // 보드 업데이트
+        function updateBoard() {
+            // 모든 플레이어 마커 제거
+            document.querySelectorAll('.player').forEach(p => p.remove());
+            
+            // 플레이어 위치 표시
+            const playerCell = document.getElementById(`cell-${positionToGrid[gameState.playerPosition]}`);
+            const computerCell = document.getElementById(`cell-${positionToGrid[gameState.computerPosition]}`);
+            
+            if (playerCell) {
+                const playerMarker = document.createElement('div');
+                playerMarker.className = 'player player-human';
+                playerMarker.textContent = 'P';
+                playerCell.appendChild(playerMarker);
+            }
+            
+            if (computerCell) {
+                const computerMarker = document.createElement('div');
+                computerMarker.className = 'player player-computer';
+                computerMarker.textContent = 'C';
+                computerCell.appendChild(computerMarker);
+            }
+            
+            // 소유권 표시 및 클래스 초기화
+            document.querySelectorAll('.cell').forEach(cell => {
+                cell.classList.remove('owned-player', 'owned-computer');
+            });
+            
+            gameState.playerProperties.forEach(propIndex => {
+                const cellIndex = positionToGrid[propIndex];
+                if (cellIndex !== undefined) {
+                    document.getElementById(`cell-${cellIndex}`).classList.add('owned-player');
+                }
+            });
+            
+            gameState.computerProperties.forEach(propIndex => {
+                const cellIndex = positionToGrid[propIndex];
+                if (cellIndex !== undefined) {
+                    document.getElementById(`cell-${cellIndex}`).classList.add('owned-computer');
+                }
+            });
+            
+            // 구매 버튼 표시/숨김
+            updateBuyButton();
+        }
+
+        // 구매 버튼 업데이트
+        function updateBuyButton() {
+            const buyButton = document.getElementById('buyButton');
+            const currentCell = boardLayout[gameState.playerPosition];
+            
+            if (gameState.currentPlayer === 'player' && 
+                currentCell.type === 'property' && 
+                !gameState.playerProperties.includes(gameState.playerPosition) && 
+                !gameState.computerProperties.includes(gameState.playerPosition) &&
+                gameState.playerMoney >= currentCell.price) {
+                buyButton.style.display = 'inline-block';
+                buyButton.textContent = `🏠 ${currentCell.name} 구매 ($${currentCell.price})`;
+            } else {
+                buyButton.style.display = 'none';
+            }
+        }
+
+        // UI 업데이트
+        function updateUI() {
+            document.getElementById('playerMoney').textContent = gameState.playerMoney;
+            document.getElementById('computerMoney').textContent = gameState.computerMoney;
+            document.getElementById('playerProperties').textContent = gameState.playerProperties.length;
+            document.getElementById('computerProperties').textContent = gameState.computerProperties.length;
+            document.getElementById('playerPosition').textContent = boardLayout[gameState.playerPosition].name;
+            document.getElementById('computerPosition').textContent = boardLayout[gameState.computerPosition].name;
+            document.getElementById('currentTurn').textContent = 
+                gameState.currentPlayer === 'player' ? '당신의 차례입니다!' : '컴퓨터의 차례입니다...';
+        }
+
+        // 게임 로그 추가
+        function addLog(message) {
+            const log = document.getElementById('gameLog');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = message;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // 주사위 굴리기
+        function rollDice() {
+            if (gameState.gameEnded) return;
+            
+            const dice1 = Math.floor(Math.random() * 6) + 1;
+            const dice2 = Math.floor(Math.random() * 6) + 1;
+            const total = dice1 + dice2;
+            
+            document.getElementById('dice1').textContent = dice1;
+            document.getElementById('dice2').textContent = dice2;
+            
+            if (gameState.currentPlayer === 'player') {
+                const oldPosition = gameState.playerPosition;
+                gameState.playerPosition = (gameState.playerPosition + total) % 16;
+                addLog(`<span class="log-player">플레이어</span>가 ${dice1} + ${dice2} = ${total}을 굴렸습니다. ${boardLayout[gameState.playerPosition].name}에 도착!`);
+                
+                // START 지나갈 때 돈 받기
+                if (gameState.playerPosition < oldPosition) {
+                    gameState.playerMoney += 100;
+                    addLog(`<span class="log-player">플레이어</span>가 시작점을 지나가서 $100을 받았습니다!`);
+                }
+                
+                handleLanding('player', gameState.playerPosition);
+                gameState.currentPlayer = 'computer';
+                
+                setTimeout(() => {
+                    if (!gameState.gameEnded) {
+                        computerTurn();
+                    }
+                }, 1500);
+            }
+            
+            updateUI();
+            updateBoard();
+        }
+
+        // 컴퓨터 턴
+        function computerTurn() {
+            const dice1 = Math.floor(Math.random() * 6) + 1;
+            const dice2 = Math.floor(Math.random() * 6) + 1;
+            const total = dice1 + dice2;
+            
+            document.getElementById('dice1').textContent = dice1;
+            document.getElementById('dice2').textContent = dice2;
+            
+            const oldPosition = gameState.computerPosition;
+            gameState.computerPosition = (gameState.computerPosition + total) % 16;
+            addLog(`<span class="log-computer">컴퓨터</span>가 ${dice1} + ${dice2} = ${total}을 굴렸습니다. ${boardLayout[gameState.computerPosition].name}에 도착!`);
+            
+            // START 지나갈 때 돈 받기
+            if (gameState.computerPosition < oldPosition) {
+                gameState.computerMoney += 100;
+                addLog(`<span class="log-computer">컴퓨터</span>가 시작점을 지나가서 $100을 받았습니다!`);
+            }
+            
+            handleLanding('computer', gameState.computerPosition);
+            gameState.currentPlayer = 'player';
+            
+            updateUI();
+            updateBoard();
+        }
+
+        // 착지 처리
+        function handleLanding(player, position) {
+            const cellData = boardLayout[position];
+            
+            if (cellData.type === 'property') {
+                if (player === 'computer') {
+                    // 컴퓨터 자동 구매 로직
+                    if (gameState.computerMoney >= cellData.price && 
+                        !gameState.playerProperties.includes(position) && 
+                        !gameState.computerProperties.includes(position) &&
+                        Math.random() > 0.4) {
+                        gameState.computerMoney -= cellData.price;
+                        gameState.computerProperties.push(position);
+                        addLog(`<span class="log-computer">컴퓨터</span>가 ${cellData.name}을(를) $${cellData.price}에 구매했습니다!`);
+                    }
+                }
+                
+                // 임대료 계산
+                if (player === 'player' && gameState.computerProperties.includes(position)) {
+                    const rent = Math.floor(cellData.price * 0.15);
+                    gameState.playerMoney -= rent;
+                    gameState.computerMoney += rent;
+                    addLog(`<span class="log-player">플레이어</span>가 ${cellData.name}의 임대료 $${rent}을 지불했습니다.`);
+                } else if (player === 'computer' && gameState.playerProperties.includes(position)) {
+                    const rent = Math.floor(cellData.price * 0.15);
+                    gameState.computerMoney -= rent;
+                    gameState.playerMoney += rent;
+                    addLog(`<span class="log-computer">컴퓨터</span>가 ${cellData.name}의 임대료 $${rent}을 지불했습니다.`);
+                }
+            } else if (cellData.type === 'special') {
+                if (cellData.name === '세금') {
+                    if (player === 'player') {
+                        gameState.playerMoney -= 50;
+                        addLog(`<span class="log-player">플레이어</span>가 세금 $50을 지불했습니다.`);
+                    } else {
+                        gameState.computerMoney -= 50;
+                        addLog(`<span class="log-computer">컴퓨터</span>가 세금 $50을 지불했습니다.`);
+                    }
+                } else if (cellData.name.includes('카드')) {
+                    const bonus = Math.floor(Math.random() * 100) + 50;
+                    if (player === 'player') {
+                        gameState.playerMoney += bonus;
+                        addLog(`<span class="log-player">플레이어</span>가 ${cellData.name}에서 $${bonus}를 받았습니다!`);
+                    } else {
+                        gameState.computerMoney += bonus;
+                        addLog(`<span class="log-computer">컴퓨터</span>가 ${cellData.name}에서 $${bonus}를 받았습니다!`);
+                    }
+                }
+            }
+            
+            checkGameEnd();
+        }
+
+        // 현재 부동산 구매
+        function buyCurrentProperty() {
+            const currentCell = boardLayout[gameState.playerPosition];
+            if (currentCell.type !== 'property') return;
+            
+            if (gameState.playerMoney >= currentCell.price) {
+                gameState.playerMoney -= currentCell.price;
+                gameState.playerProperties.push(gameState.playerPosition);
+                addLog(`<span class="log-player">플레이어</span>가 ${currentCell.name}을(를) $${currentCell.price}에 구매했습니다!`);
+                updateUI();
+                updateBoard();
+            }
+        }
+
+        // 게임 종료 확인
+        function checkGameEnd() {
+            if (gameState.playerMoney < 0) {
+                addLog('💸 게임 종료! 돈이 부족하여 파산했습니다. 컴퓨터 승리!');
+                gameState.gameEnded = true;
+                document.getElementById('rollDice').disabled = true;
+            } else if (gameState.computerMoney < 0) {
+                addLog('🎉 축하합니다! 컴퓨터가 파산했습니다. 플레이어 승리!');
+                gameState.gameEnded = true;
+                document.getElementById('rollDice').disabled = true;
+            } else if (gameState.playerProperties.length >= 6) {
+                addLog('🎉 축하합니다! 6개 이상의 부동산을 소유하여 승리했습니다!');
+                gameState.gameEnded = true;
+                document.getElementById('rollDice').disabled = true;
+            } else if (gameState.computerProperties.length >= 6) {
+                addLog('💸 게임 종료! 컴퓨터가 6개 이상의 부동산을 소유했습니다. 컴퓨터 승리!');
+                gameState.gameEnded = true;
+                document.getElementById('rollDice').disabled = true;
+            }
+        }
+
+        // 게임 초기화
+        initBoard();
+        updateUI();
+    </script>
+</body>
+</html>
