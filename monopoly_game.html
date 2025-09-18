@@ -22,7 +22,7 @@
         }
 
         .game-container {
-            max-width: 600px;
+            max-width: 800px;
             width: 100%;
             background: white;
             border-radius: 15px;
@@ -68,6 +68,11 @@
             font-size: 10px;
         }
 
+        .jail {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            color: white;
+        }
+
         .property {
             cursor: pointer;
             transition: all 0.3s ease;
@@ -79,12 +84,12 @@
         }
 
         .owned-player {
-            background: linear-gradient(45deg, #4ecdc4, #44a08d);
+            background: linear-gradient(45deg, #4ecdc4, #44a08d) !important;
             color: white;
         }
 
         .owned-computer {
-            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24) !important;
             color: white;
         }
 
@@ -134,6 +139,40 @@
             color: #333;
         }
 
+        .properties-panel {
+            background: white;
+            margin: 20px;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .properties-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 10px;
+        }
+
+        .property-item {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 8px;
+            border: 2px solid #ddd;
+        }
+
+        .property-item.player-owned {
+            border-color: #4ecdc4;
+            background: linear-gradient(135deg, #4ecdc4, #44a08d);
+            color: white;
+        }
+
+        .property-item.computer-owned {
+            border-color: #ff6b6b;
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+        }
+
         .controls {
             text-align: center;
             padding: 20px;
@@ -167,6 +206,13 @@
             background: linear-gradient(45deg, #4ecdc4, #44a08d);
             font-size: 14px;
             padding: 8px 16px;
+        }
+
+        .btn-sell {
+            background: linear-gradient(45deg, #e74c3c, #c0392b);
+            font-size: 12px;
+            padding: 6px 12px;
+            margin: 5px 0;
         }
 
         .dice {
@@ -222,6 +268,15 @@
             color: #666;
         }
 
+        .status-indicator {
+            font-size: 12px;
+            margin: 5px 0;
+            padding: 3px 8px;
+            border-radius: 10px;
+            background: #ffeaa7;
+            color: #2d3436;
+        }
+
         @media (max-width: 768px) {
             .cell {
                 font-size: 9px;
@@ -234,6 +289,10 @@
                 height: 15px;
                 font-size: 10px;
                 line-height: 11px;
+            }
+
+            .properties-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -253,12 +312,14 @@
                 <p>💰 돈: $<span id="playerMoney">1000</span></p>
                 <p>🏠 소유 부동산: <span id="playerProperties">0</span></p>
                 <p>📍 위치: <span id="playerPosition">시작</span></p>
+                <div id="playerStatus"></div>
             </div>
             <div class="player-info">
                 <h3>🤖 컴퓨터</h3>
                 <p>💰 돈: $<span id="computerMoney">1000</span></p>
                 <p>🏠 소유 부동산: <span id="computerProperties">0</span></p>
                 <p>📍 위치: <span id="computerPosition">시작</span></p>
+                <div id="computerStatus"></div>
             </div>
         </div>
 
@@ -275,6 +336,11 @@
         <div class="game-log" id="gameLog">
             <div class="log-entry">게임이 시작되었습니다! 플레이어와 컴퓨터 모두 $1000으로 시작합니다.</div>
         </div>
+
+        <div class="properties-panel">
+            <h3>🏠 부동산 현황</h3>
+            <div class="properties-grid" id="propertiesGrid"></div>
+        </div>
     </div>
 
     <script>
@@ -287,31 +353,30 @@
             computerPosition: 0,
             playerProperties: [],
             computerProperties: [],
+            playerInJail: false,
+            computerInJail: false,
+            playerJailFree: false,
+            computerJailFree: false,
+            playerDoubleCount: 0,
+            computerDoubleCount: 0,
             gameEnded: false
         };
 
         // 5x5 보드 레이아웃 (16칸, 테두리만 사용)
         const boardLayout = [
-            // 위쪽 줄 (0-4)
             { name: '시작', type: 'corner', price: 0 },
             { name: '강남', type: 'property', price: 100 },
-            { name: '행운카드', type: 'special', price: 0 },
+            { name: '행운카드', type: 'lucky', price: 0 },
             { name: '홍대', type: 'property', price: 120 },
-            { name: '감옥', type: 'corner', price: 0 },
-            
-            // 오른쪽 줄 (5-7)
+            { name: '감옥', type: 'jail', price: 0 },
             { name: '명동', type: 'property', price: 150 },
             { name: '동대문', type: 'property', price: 100 },
             { name: '이태원', type: 'property', price: 130 },
-            
-            // 아래쪽 줄 (8-11)
             { name: '무료주차', type: 'corner', price: 0 },
             { name: '여의도', type: 'property', price: 110 },
-            { name: '기회카드', type: 'special', price: 0 },
+            { name: '행운카드', type: 'lucky', price: 0 },
             { name: '건대', type: 'property', price: 90 },
-            
-            // 왼쪽 줄 (12-15)
-            { name: '세금', type: 'special', price: 0 },
+            { name: '세금', type: 'tax', price: 0 },
             { name: '신촌', type: 'property', price: 80 },
             { name: '잠실', type: 'property', price: 140 },
             { name: '압구정', type: 'property', price: 160 }
@@ -319,10 +384,10 @@
 
         // 5x5 그리드에서 보드 위치 매핑
         const positionToGrid = [
-            0, 1, 2, 3, 4,      // 위쪽 (0-4)
-            9, 14, 19,          // 오른쪽 (5-7)
-            24, 23, 22, 21, 20, // 아래쪽 (8-12)
-            15, 10, 5           // 왼쪽 (13-15)
+            0, 1, 2, 3, 4,          // 위쪽 (0-4)
+            9, 14, 19,              // 오른쪽 (5-7)
+            24, 23, 22, 21, 20,     // 아래쪽 (8-12)
+            15, 10, 5               // 왼쪽 (13-15)
         ];
 
         // 보드 초기화
@@ -335,7 +400,6 @@
                 cell.className = 'cell';
                 cell.id = `cell-${i}`;
                 
-                // 테두리 셀만 활성화
                 const boardIndex = positionToGrid.indexOf(i);
                 if (boardIndex !== -1) {
                     const cellData = boardLayout[boardIndex];
@@ -343,17 +407,21 @@
                     if (cellData.type === 'corner') {
                         cell.classList.add('corner');
                         cell.innerHTML = `<div>${cellData.name}</div>`;
+                    } else if (cellData.type === 'jail') {
+                        cell.classList.add('jail');
+                        cell.innerHTML = `<div>🔒${cellData.name}</div>`;
                     } else if (cellData.type === 'property') {
                         cell.classList.add('property');
                         cell.innerHTML = `
                             <div class="property-name">${cellData.name}</div>
                             <div class="property-price">$${cellData.price}</div>
                         `;
+                    } else if (cellData.type === 'tax') {
+                        cell.innerHTML = `<div style="font-size: 9px;">💸${cellData.name}<br>$50</div>`;
                     } else {
-                        cell.innerHTML = `<div style="font-size: 9px;">${cellData.name}</div>`;
+                        cell.innerHTML = `<div style="font-size: 9px;">🍀${cellData.name}</div>`;
                     }
                 } else {
-                    // 중앙 빈 공간
                     cell.style.background = '#f8f9fa';
                     cell.style.border = 'none';
                 }
@@ -362,32 +430,90 @@
             }
             
             updateBoard();
+            updatePropertiesPanel();
+        }
+
+        // 부동산 패널 업데이트
+        function updatePropertiesPanel() {
+            const panel = document.getElementById('propertiesGrid');
+            if (!panel) return;
+            
+            panel.innerHTML = '';
+            
+            boardLayout.forEach((cell, index) => {
+                if (cell.type === 'property') {
+                    const propertyItem = document.createElement('div');
+                    propertyItem.className = 'property-item';
+                    
+                    let owner = '미소유';
+                    let sellButton = '';
+                    
+                    if (gameState.playerProperties.includes(index)) {
+                        propertyItem.classList.add('player-owned');
+                        owner = '플레이어 소유';
+                        sellButton = `<button class="btn btn-sell" onclick="sellProperty(${index})">판매 ($${Math.floor(cell.price * 0.7)})</button>`;
+                    } else if (gameState.computerProperties.includes(index)) {
+                        propertyItem.classList.add('computer-owned');
+                        owner = '컴퓨터 소유';
+                    }
+                    
+                    propertyItem.innerHTML = `
+                        <div><strong>${cell.name}</strong></div>
+                        <div>구매가: $${cell.price}</div>
+                        <div>임대료: $${Math.floor(cell.price * 0.15)}</div>
+                        <div style="font-size: 12px; color: #666;">${owner}</div>
+                        ${sellButton}
+                    `;
+                    
+                    panel.appendChild(propertyItem);
+                }
+            });
+        }
+
+        // 부동산 판매
+        function sellProperty(propertyIndex) {
+            if (!gameState.playerProperties.includes(propertyIndex)) return;
+            
+            const cellData = boardLayout[propertyIndex];
+            const sellPrice = Math.floor(cellData.price * 0.7);
+            
+            if (confirm(`${cellData.name}을(를) $${sellPrice}에 판매하시겠습니까?`)) {
+                gameState.playerMoney += sellPrice;
+                gameState.playerProperties = gameState.playerProperties.filter(p => p !== propertyIndex);
+                addLog(`<span class="log-player">플레이어</span>가 ${cellData.name}을(를) $${sellPrice}에 판매했습니다.`);
+                updateUI();
+                updateBoard();
+                updatePropertiesPanel();
+            }
         }
 
         // 보드 업데이트
         function updateBoard() {
-            // 모든 플레이어 마커 제거
             document.querySelectorAll('.player').forEach(p => p.remove());
             
-            // 플레이어 위치 표시
-            const playerCell = document.getElementById(`cell-${positionToGrid[gameState.playerPosition]}`);
-            const computerCell = document.getElementById(`cell-${positionToGrid[gameState.computerPosition]}`);
+            const playerGridPos = positionToGrid[gameState.playerPosition];
+            const computerGridPos = positionToGrid[gameState.computerPosition];
             
-            if (playerCell) {
-                const playerMarker = document.createElement('div');
-                playerMarker.className = 'player player-human';
-                playerMarker.textContent = 'P';
-                playerCell.appendChild(playerMarker);
+            if (playerGridPos !== undefined) {
+                const playerCell = document.getElementById(`cell-${playerGridPos}`);
+                if (playerCell) {
+                    const playerMarker = document.createElement('div');
+                    playerMarker.className = 'player player-human';
+                    playerMarker.textContent = gameState.playerInJail ? '🔒' : 'P';
+                    playerCell.appendChild(playerMarker);
+                }
             }
             
-            if (computerCell) {
-                const computerMarker = document.createElement('div');
-                computerMarker.className = 'player player-computer';
-                computerMarker.textContent = 'C';
-                computerCell.appendChild(computerMarker);
+            if (computerGridPos !== undefined) {
+                const computerCell = document.getElementById(`cell-${computerGridPos}`);
+                if (computerCell) {
+                    const computerMarker = document.createElement('div');
+                    computerMarker.className = 'player player-computer';
+                    computerMarker.textContent = gameState.computerInJail ? '🔒' : 'C';
+                    computerCell.appendChild(computerMarker);
+                }
             }
             
-            // 소유권 표시 및 클래스 초기화
             document.querySelectorAll('.cell').forEach(cell => {
                 cell.classList.remove('owned-player', 'owned-computer');
             });
@@ -395,31 +521,36 @@
             gameState.playerProperties.forEach(propIndex => {
                 const cellIndex = positionToGrid[propIndex];
                 if (cellIndex !== undefined) {
-                    document.getElementById(`cell-${cellIndex}`).classList.add('owned-player');
+                    const cell = document.getElementById(`cell-${cellIndex}`);
+                    if (cell) cell.classList.add('owned-player');
                 }
             });
             
             gameState.computerProperties.forEach(propIndex => {
                 const cellIndex = positionToGrid[propIndex];
                 if (cellIndex !== undefined) {
-                    document.getElementById(`cell-${cellIndex}`).classList.add('owned-computer');
+                    const cell = document.getElementById(`cell-${cellIndex}`);
+                    if (cell) cell.classList.add('owned-computer');
                 }
             });
             
-            // 구매 버튼 표시/숨김
             updateBuyButton();
         }
 
         // 구매 버튼 업데이트
         function updateBuyButton() {
             const buyButton = document.getElementById('buyButton');
+            if (!buyButton) return;
+            
             const currentCell = boardLayout[gameState.playerPosition];
+            if (!currentCell) return;
             
             if (gameState.currentPlayer === 'player' && 
                 currentCell.type === 'property' && 
                 !gameState.playerProperties.includes(gameState.playerPosition) && 
                 !gameState.computerProperties.includes(gameState.playerPosition) &&
-                gameState.playerMoney >= currentCell.price) {
+                gameState.playerMoney >= currentCell.price &&
+                !gameState.playerInJail) {
                 buyButton.style.display = 'inline-block';
                 buyButton.textContent = `🏠 ${currentCell.name} 구매 ($${currentCell.price})`;
             } else {
@@ -429,19 +560,46 @@
 
         // UI 업데이트
         function updateUI() {
-            document.getElementById('playerMoney').textContent = gameState.playerMoney;
-            document.getElementById('computerMoney').textContent = gameState.computerMoney;
-            document.getElementById('playerProperties').textContent = gameState.playerProperties.length;
-            document.getElementById('computerProperties').textContent = gameState.computerProperties.length;
-            document.getElementById('playerPosition').textContent = boardLayout[gameState.playerPosition].name;
-            document.getElementById('computerPosition').textContent = boardLayout[gameState.computerPosition].name;
-            document.getElementById('currentTurn').textContent = 
-                gameState.currentPlayer === 'player' ? '당신의 차례입니다!' : '컴퓨터의 차례입니다...';
+            const elements = {
+                playerMoney: document.getElementById('playerMoney'),
+                computerMoney: document.getElementById('computerMoney'),
+                playerProperties: document.getElementById('playerProperties'),
+                computerProperties: document.getElementById('computerProperties'),
+                playerPosition: document.getElementById('playerPosition'),
+                computerPosition: document.getElementById('computerPosition'),
+                playerStatus: document.getElementById('playerStatus'),
+                computerStatus: document.getElementById('computerStatus'),
+                currentTurn: document.getElementById('currentTurn')
+            };
+            
+            if (elements.playerMoney) elements.playerMoney.textContent = gameState.playerMoney;
+            if (elements.computerMoney) elements.computerMoney.textContent = gameState.computerMoney;
+            if (elements.playerProperties) elements.playerProperties.textContent = gameState.playerProperties.length;
+            if (elements.computerProperties) elements.computerProperties.textContent = gameState.computerProperties.length;
+            if (elements.playerPosition) elements.playerPosition.textContent = boardLayout[gameState.playerPosition]?.name || '알 수 없음';
+            if (elements.computerPosition) elements.computerPosition.textContent = boardLayout[gameState.computerPosition]?.name || '알 수 없음';
+            
+            let playerStatusText = '';
+            if (gameState.playerInJail) playerStatusText += '<div class="status-indicator">🔒 감옥에 있음</div>';
+            if (gameState.playerJailFree) playerStatusText += '<div class="status-indicator">🗝️ 감옥 면제권 보유</div>';
+            if (elements.playerStatus) elements.playerStatus.innerHTML = playerStatusText;
+            
+            let computerStatusText = '';
+            if (gameState.computerInJail) computerStatusText += '<div class="status-indicator">🔒 감옥에 있음</div>';
+            if (gameState.computerJailFree) computerStatusText += '<div class="status-indicator">🗝️ 감옥 면제권 보유</div>';
+            if (elements.computerStatus) elements.computerStatus.innerHTML = computerStatusText;
+            
+            if (elements.currentTurn) {
+                elements.currentTurn.textContent = 
+                    gameState.currentPlayer === 'player' ? '당신의 차례입니다!' : '컴퓨터의 차례입니다...';
+            }
         }
 
         // 게임 로그 추가
         function addLog(message) {
             const log = document.getElementById('gameLog');
+            if (!log) return;
+            
             const entry = document.createElement('div');
             entry.className = 'log-entry';
             entry.innerHTML = message;
@@ -453,62 +611,214 @@
         function rollDice() {
             if (gameState.gameEnded) return;
             
-            const dice1 = Math.floor(Math.random() * 6) + 1;
-            const dice2 = Math.floor(Math.random() * 6) + 1;
+            if (gameState.currentPlayer === 'player' && gameState.playerInJail) {
+                gameState.playerInJail = false;
+                addLog(`<span class="log-player">플레이어</span>가 감옥에서 1턴을 쉬었습니다.`);
+                gameState.currentPlayer = 'computer';
+                setTimeout(() => {
+                    if (!gameState.gameEnded) computerTurn();
+                }, 1500);
+                updateUI();
+                updateBoard();
+                return;
+            }
+            
+            const dice1 = Math.floor(Math.random() * 4) + 1;
+            const dice2 = Math.floor(Math.random() * 4) + 1;
             const total = dice1 + dice2;
+            const isDouble = dice1 === dice2;
             
             document.getElementById('dice1').textContent = dice1;
             document.getElementById('dice2').textContent = dice2;
             
             if (gameState.currentPlayer === 'player') {
+                if (isDouble) {
+                    gameState.playerDoubleCount++;
+                    addLog(`<span class="log-player">플레이어</span>가 더블 ${dice1} + ${dice2} = ${total}을 굴렸습니다! (${gameState.playerDoubleCount}번째)`);
+                    
+                    if (gameState.playerDoubleCount >= 2) {
+                        addLog(`<span class="log-player">플레이어</span>가 연속 더블로 감옥에 갑니다!`);
+                        gameState.playerPosition = 4;
+                        gameState.playerInJail = true;
+                        gameState.playerDoubleCount = 0;
+                        gameState.currentPlayer = 'computer';
+                        setTimeout(() => {
+                            if (!gameState.gameEnded) computerTurn();
+                        }, 1500);
+                        updateUI();
+                        updateBoard();
+                        return;
+                    }
+                } else {
+                    gameState.playerDoubleCount = 0;
+                    addLog(`<span class="log-player">플레이어</span>가 ${dice1} + ${dice2} = ${total}을 굴렸습니다.`);
+                }
+                
                 const oldPosition = gameState.playerPosition;
                 gameState.playerPosition = (gameState.playerPosition + total) % 16;
-                addLog(`<span class="log-player">플레이어</span>가 ${dice1} + ${dice2} = ${total}을 굴렸습니다. ${boardLayout[gameState.playerPosition].name}에 도착!`);
+                addLog(`${boardLayout[gameState.playerPosition].name}에 도착!`);
                 
-                // START 지나갈 때 돈 받기
                 if (gameState.playerPosition < oldPosition) {
                     gameState.playerMoney += 100;
                     addLog(`<span class="log-player">플레이어</span>가 시작점을 지나가서 $100을 받았습니다!`);
                 }
                 
                 handleLanding('player', gameState.playerPosition);
-                gameState.currentPlayer = 'computer';
                 
-                setTimeout(() => {
-                    if (!gameState.gameEnded) {
-                        computerTurn();
-                    }
-                }, 1500);
+                if (!isDouble) {
+                    gameState.currentPlayer = 'computer';
+                    setTimeout(() => {
+                        if (!gameState.gameEnded) computerTurn();
+                    }, 1500);
+                }
             }
             
             updateUI();
             updateBoard();
+            updatePropertiesPanel();
         }
 
         // 컴퓨터 턴
         function computerTurn() {
-            const dice1 = Math.floor(Math.random() * 6) + 1;
-            const dice2 = Math.floor(Math.random() * 6) + 1;
+            if (gameState.computerInJail) {
+                gameState.computerInJail = false;
+                addLog(`<span class="log-computer">컴퓨터</span>가 감옥에서 1턴을 쉬었습니다.`);
+                gameState.currentPlayer = 'player';
+                updateUI();
+                updateBoard();
+                return;
+            }
+            
+            const dice1 = Math.floor(Math.random() * 4) + 1;
+            const dice2 = Math.floor(Math.random() * 4) + 1;
             const total = dice1 + dice2;
+            const isDouble = dice1 === dice2;
             
             document.getElementById('dice1').textContent = dice1;
             document.getElementById('dice2').textContent = dice2;
             
+            if (isDouble) {
+                gameState.computerDoubleCount++;
+                addLog(`<span class="log-computer">컴퓨터</span>가 더블 ${dice1} + ${dice2} = ${total}을 굴렸습니다! (${gameState.computerDoubleCount}번째)`);
+                
+                if (gameState.computerDoubleCount >= 2) {
+                    addLog(`<span class="log-computer">컴퓨터</span>가 연속 더블로 감옥에 갑니다!`);
+                    gameState.computerPosition = 4;
+                    gameState.computerInJail = true;
+                    gameState.computerDoubleCount = 0;
+                    gameState.currentPlayer = 'player';
+                    updateUI();
+                    updateBoard();
+                    return;
+                }
+            } else {
+                gameState.computerDoubleCount = 0;
+                addLog(`<span class="log-computer">컴퓨터</span>가 ${dice1} + ${dice2} = ${total}을 굴렸습니다.`);
+            }
+            
             const oldPosition = gameState.computerPosition;
             gameState.computerPosition = (gameState.computerPosition + total) % 16;
-            addLog(`<span class="log-computer">컴퓨터</span>가 ${dice1} + ${dice2} = ${total}을 굴렸습니다. ${boardLayout[gameState.computerPosition].name}에 도착!`);
+            addLog(`${boardLayout[gameState.computerPosition].name}에 도착!`);
             
-            // START 지나갈 때 돈 받기
             if (gameState.computerPosition < oldPosition) {
                 gameState.computerMoney += 100;
                 addLog(`<span class="log-computer">컴퓨터</span>가 시작점을 지나가서 $100을 받았습니다!`);
             }
             
             handleLanding('computer', gameState.computerPosition);
-            gameState.currentPlayer = 'player';
+            
+            if (!isDouble) {
+                gameState.currentPlayer = 'player';
+            } else {
+                setTimeout(() => {
+                    if (!gameState.gameEnded) computerTurn();
+                }, 1500);
+            }
             
             updateUI();
             updateBoard();
+            updatePropertiesPanel();
+        }
+
+        // 행운카드 처리
+        function handleLuckyCard(player) {
+            const effects = [
+                { text: '감옥으로 갑니다!', action: 'jail' },
+                { text: '감옥 면제권을 받았습니다!', action: 'jailFree' },
+                { text: '세금칸으로 이동합니다!', action: 'tax' },
+                { text: '상대방의 부동산 하나를 강제 판매시킵니다!', action: 'sellOpponent' },
+                { text: '$300를 받습니다!', action: 'money' }
+            ];
+            
+            const effect = effects[Math.floor(Math.random() * effects.length)];
+            addLog(`🍀 행운카드: ${effect.text}`);
+            
+            switch (effect.action) {
+                case 'jail':
+                    if (player === 'player') {
+                        if (gameState.playerJailFree) {
+                            gameState.playerJailFree = false;
+                            addLog(`<span class="log-player">플레이어</span>가 감옥 면제권을 사용했습니다!`);
+                        } else {
+                            gameState.playerPosition = 4;
+                            gameState.playerInJail = true;
+                        }
+                    } else {
+                        if (gameState.computerJailFree) {
+                            gameState.computerJailFree = false;
+                            addLog(`<span class="log-computer">컴퓨터</span>가 감옥 면제권을 사용했습니다!`);
+                        } else {
+                            gameState.computerPosition = 4;
+                            gameState.computerInJail = true;
+                        }
+                    }
+                    break;
+                case 'jailFree':
+                    if (player === 'player') {
+                        gameState.playerJailFree = true;
+                    } else {
+                        gameState.computerJailFree = true;
+                    }
+                    break;
+                case 'tax':
+                    const taxPosition = 12;
+                    if (player === 'player') {
+                        gameState.playerPosition = taxPosition;
+                        gameState.playerMoney -= 50;
+                        addLog(`<span class="log-player">플레이어</span>가 세금 $50을 지불했습니다.`);
+                    } else {
+                        gameState.computerPosition = taxPosition;
+                        gameState.computerMoney -= 50;
+                        addLog(`<span class="log-computer">컴퓨터</span>가 세금 $50을 지불했습니다.`);
+                    }
+                    break;
+                case 'sellOpponent':
+                    if (player === 'player' && gameState.computerProperties.length > 0) {
+                        const randomIndex = Math.floor(Math.random() * gameState.computerProperties.length);
+                        const propertyIndex = gameState.computerProperties[randomIndex];
+                        const sellPrice = Math.floor(boardLayout[propertyIndex].price * 0.7);
+                        gameState.computerMoney += sellPrice;
+                        gameState.computerProperties.splice(randomIndex, 1);
+                        addLog(`<span class="log-computer">컴퓨터</span>의 ${boardLayout[propertyIndex].name}이 강제 판매되어 ${sellPrice}를 받았습니다.`);
+                    } else if (player === 'computer' && gameState.playerProperties.length > 0) {
+                        const randomIndex = Math.floor(Math.random() * gameState.playerProperties.length);
+                        const propertyIndex = gameState.playerProperties[randomIndex];
+                        const sellPrice = Math.floor(boardLayout[propertyIndex].price * 0.7);
+                        gameState.playerMoney += sellPrice;
+                        gameState.playerProperties.splice(randomIndex, 1);
+                        addLog(`<span class="log-player">플레이어</span>의 ${boardLayout[propertyIndex].name}이 강제 판매되어 ${sellPrice}를 받았습니다.`);
+                    }
+                    break;
+                case 'money':
+                    if (player === 'player') {
+                        gameState.playerMoney += 300;
+                        addLog(`<span class="log-player">플레이어</span>가 $300을 받았습니다!`);
+                    } else {
+                        gameState.computerMoney += 300;
+                        addLog(`<span class="log-computer">컴퓨터</span>가 $300을 받았습니다!`);
+                    }
+                    break;
+            }
         }
 
         // 착지 처리
@@ -517,48 +827,37 @@
             
             if (cellData.type === 'property') {
                 if (player === 'computer') {
-                    // 컴퓨터 자동 구매 로직
                     if (gameState.computerMoney >= cellData.price && 
                         !gameState.playerProperties.includes(position) && 
                         !gameState.computerProperties.includes(position) &&
                         Math.random() > 0.4) {
                         gameState.computerMoney -= cellData.price;
                         gameState.computerProperties.push(position);
-                        addLog(`<span class="log-computer">컴퓨터</span>가 ${cellData.name}을(를) $${cellData.price}에 구매했습니다!`);
+                        addLog(`<span class="log-computer">컴퓨터</span>가 ${cellData.name}을(를) ${cellData.price}에 구매했습니다!`);
                     }
                 }
                 
-                // 임대료 계산
                 if (player === 'player' && gameState.computerProperties.includes(position)) {
                     const rent = Math.floor(cellData.price * 0.15);
                     gameState.playerMoney -= rent;
                     gameState.computerMoney += rent;
-                    addLog(`<span class="log-player">플레이어</span>가 ${cellData.name}의 임대료 $${rent}을 지불했습니다.`);
+                    addLog(`<span class="log-player">플레이어</span>가 ${cellData.name}의 임대료 ${rent}을 지불했습니다.`);
                 } else if (player === 'computer' && gameState.playerProperties.includes(position)) {
                     const rent = Math.floor(cellData.price * 0.15);
                     gameState.computerMoney -= rent;
                     gameState.playerMoney += rent;
-                    addLog(`<span class="log-computer">컴퓨터</span>가 ${cellData.name}의 임대료 $${rent}을 지불했습니다.`);
+                    addLog(`<span class="log-computer">컴퓨터</span>가 ${cellData.name}의 임대료 ${rent}을 지불했습니다.`);
                 }
-            } else if (cellData.type === 'special') {
-                if (cellData.name === '세금') {
-                    if (player === 'player') {
-                        gameState.playerMoney -= 50;
-                        addLog(`<span class="log-player">플레이어</span>가 세금 $50을 지불했습니다.`);
-                    } else {
-                        gameState.computerMoney -= 50;
-                        addLog(`<span class="log-computer">컴퓨터</span>가 세금 $50을 지불했습니다.`);
-                    }
-                } else if (cellData.name.includes('카드')) {
-                    const bonus = Math.floor(Math.random() * 100) + 50;
-                    if (player === 'player') {
-                        gameState.playerMoney += bonus;
-                        addLog(`<span class="log-player">플레이어</span>가 ${cellData.name}에서 $${bonus}를 받았습니다!`);
-                    } else {
-                        gameState.computerMoney += bonus;
-                        addLog(`<span class="log-computer">컴퓨터</span>가 ${cellData.name}에서 $${bonus}를 받았습니다!`);
-                    }
+            } else if (cellData.type === 'tax') {
+                if (player === 'player') {
+                    gameState.playerMoney -= 50;
+                    addLog(`<span class="log-player">플레이어</span>가 세금 $50을 지불했습니다.`);
+                } else {
+                    gameState.computerMoney -= 50;
+                    addLog(`<span class="log-computer">컴퓨터</span>가 세금 $50을 지불했습니다.`);
                 }
+            } else if (cellData.type === 'lucky') {
+                handleLuckyCard(player);
             }
             
             checkGameEnd();
@@ -572,9 +871,10 @@
             if (gameState.playerMoney >= currentCell.price) {
                 gameState.playerMoney -= currentCell.price;
                 gameState.playerProperties.push(gameState.playerPosition);
-                addLog(`<span class="log-player">플레이어</span>가 ${currentCell.name}을(를) $${currentCell.price}에 구매했습니다!`);
+                addLog(`<span class="log-player">플레이어</span>가 ${currentCell.name}을(를) ${currentCell.price}에 구매했습니다!`);
                 updateUI();
                 updateBoard();
+                updatePropertiesPanel();
             }
         }
 
@@ -599,7 +899,13 @@
             }
         }
 
-        // 게임 초기화
+        // 페이지 로드 후 게임 초기화
+        document.addEventListener('DOMContentLoaded', function() {
+            initBoard();
+            updateUI();
+        });
+        
+        // 초기화 함수 직접 호출 (백업)
         initBoard();
         updateUI();
     </script>
